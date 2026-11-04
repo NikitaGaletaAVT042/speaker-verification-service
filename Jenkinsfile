@@ -1,6 +1,10 @@
 pipeline {
     agent { label 'speaker-builder' }
 
+    triggers {
+        pollSCM('H/2 * * * *')
+    }
+
     options {
         timeout(time: 180, unit: 'MINUTES')
         disableConcurrentBuilds()
