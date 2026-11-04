@@ -64,5 +64,24 @@ pipeline {
                 '''
             }
         }
+
+        stage('Image checks') {
+            options {
+                timeout(time: 5, unit: 'MINUTES')
+            }
+
+            steps {
+                sh '''
+                    set -eu
+                    image="localhost/speaker-verification:ci-${BUILD_NUMBER}"
+
+                    for check in check_image_runtime.py check_telemetry_hooks.py
+                    do
+                        podman --remote run --rm                             --network none                             --read-only                             --userns=keep-id:uid=1000,gid=1000                             --user 1000:1000                             --tmpfs /tmp:rw,size=64m,mode=1777                             --cpus 1                             --memory 512m                             --pids-limit 128                             --cap-drop ALL                             --security-opt no-new-privileges                             --env SV_MLFLOW_ENABLED=0                             --mount "type=bind,source=$WORKSPACE/checks/$check,target=/check.py,readonly"                             --entrypoint python                             "$image" /check.py
+                    done
+                '''
+            }
+        }
+
     }
 }
