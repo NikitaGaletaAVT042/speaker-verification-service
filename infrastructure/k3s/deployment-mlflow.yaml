@@ -1,0 +1,159 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speaker-verification
+  namespace: speaker-verification
+spec:
+  progressDeadlineSeconds: 240
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: speaker-verification
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: speaker-verification
+    spec:
+      automountServiceAccountToken: false
+      containers:
+      - env:
+        - name: SV_MLFLOW_ENABLED
+          value: "1"
+        - name: SV_MLFLOW_CREDENTIALS_PATH
+          value: /run/mlflow/credentials.json
+        - name: SV_MODEL_PATH
+          value: /model
+        - name: SV_USERS_PATH
+          value: /run/secrets/app-users.json
+        - name: SV_METRICS_TOKEN_SHA256_PATH
+          value: /run/secrets/metrics-token.sha256
+        - name: SV_POLICY_PATH
+          value: /app/threshold-policy-v1.json
+        - name: SV_ALLOWED_ORIGINS
+          value: https://speaker-taskflow.duckdns.org,http://192.168.0.157:7861
+        - name: HOME
+          value: /tmp
+        - name: GRADIO_TEMP_DIR
+          value: /tmp/gradio
+        image: docker.io/library/sv-service:mlflow-integrated-v1
+        imagePullPolicy: Never
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health/live
+            port: http
+          periodSeconds: 10
+          timeoutSeconds: 2
+        name: api
+        ports:
+        - containerPort: 7860
+          name: http
+        readinessProbe:
+          failureThreshold: 2
+          httpGet:
+            path: /health/ready
+            port: http
+          periodSeconds: 5
+          timeoutSeconds: 2
+        resources:
+          limits:
+            cpu: "2"
+            memory: 2Gi
+          requests:
+            cpu: 500m
+            memory: 768Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        startupProbe:
+          failureThreshold: 30
+          httpGet:
+            path: /health/ready
+            port: http
+          periodSeconds: 3
+          timeoutSeconds: 2
+        volumeMounts:
+        - mountPath: /run/mlflow
+          name: mlflow-telemetry
+          readOnly: true
+        - mountPath: /model
+          name: model
+          readOnly: true
+        - mountPath: /run/secrets
+          name: auth-runtime
+          readOnly: true
+        - mountPath: /tmp
+          name: temporary
+      hostAliases:
+      - hostnames:
+        - mlflow-taskflow.duckdns.org
+        ip: 192.168.0.157
+      initContainers:
+      - args:
+        - |
+          umask 077
+          cp /source/app-users.json /prepared/app-users.json
+          cp /source/metrics-token.sha256 /prepared/metrics-token.sha256
+          chmod 600 /prepared/app-users.json /prepared/metrics-token.sha256
+        command:
+        - /bin/sh
+        - -ec
+        image: docker.io/library/sv-service:k3s-v3
+        imagePullPolicy: Never
+        name: prepare-auth
+        resources:
+          limits:
+            cpu: 200m
+            memory: 64Mi
+          requests:
+            cpu: 50m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /source
+          name: auth-source
+          readOnly: true
+        - mountPath: /prepared
+          name: auth-runtime
+      nodeSelector:
+        kubernetes.io/hostname: workserver
+      securityContext:
+        fsGroup: 1000
+        runAsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: mlflow-telemetry
+        secret:
+          defaultMode: 288
+          secretName: mlflow-telemetry
+      - hostPath:
+          path: /home/nikita/apps/mlflow-stack/releases/ecapa-vibravox-20261103T151003849219Z
+          type: Directory
+        name: model
+      - name: auth-source
+        secret:
+          defaultMode: 288
+          secretName: speaker-auth
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 1Mi
+        name: auth-runtime
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 256Mi
+        name: temporary

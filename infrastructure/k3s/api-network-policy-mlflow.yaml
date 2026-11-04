@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: speaker-api-isolation
+  namespace: speaker-verification
+spec:
+  podSelector:
+    matchLabels:
+      app: speaker-verification
+
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress: []
+
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 192.168.0.157/32
+      ports:
+        - protocol: TCP
+          port: 443

@@ -1,0 +1,55 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+secrets/
+**/secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.htpasswd
+*credentials*.json
+*token*.sha256
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Notebook temporary files
+.ipynb_checkpoints/
+
+# Models, audio and datasets
+/model/
+/models/
+/data/
+/datasets/
+/checks/fixtures/
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.wav
+*.flac
+*.mp3
+
+# Archives, backups and temporary files
+*.tar
+*.tar.gz
+*.zip
+*.part
+*.before-*
+*.bak
+*.log
+STAGING-SHA256.json
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,3 @@
+service/*.before-*
+service/__pycache__/
+service/*.pyc

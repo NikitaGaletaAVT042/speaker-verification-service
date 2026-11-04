@@ -1,0 +1,16 @@
+**
+!Dockerfile
+!requirements-runtime.lock.txt
+!threshold_policy.py
+!threshold-policy-v1.json
+!service/
+!service/app.py
+!service/auth.py
+!service/http_auth.py
+!service/metrics_access.py
+!service/model_worker.py
+!service/request_limits.py
+!service/telemetry.py
+!service/mlflow_export.py
+!checks/
+!checks/speaker_core.py
