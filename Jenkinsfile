@@ -83,5 +83,50 @@ pipeline {
             }
         }
 
+
+        stage('Inference regression') {
+            options {
+                timeout(time: 10, unit: 'MINUTES')
+            }
+
+            steps {
+                sh '''
+                    set -eu
+                    image="localhost/speaker-verification:ci-${BUILD_NUMBER}"
+
+                    podman --remote run --rm \
+                        --name "speaker-ci-regression-${BUILD_NUMBER}" \
+                        --network none \
+                        --read-only \
+                        --user 1000:1000 \
+                        --tmpfs /tmp:rw,size=256m,mode=1777 \
+                        --cpus 1 \
+                        --memory 2g \
+                        --pids-limit 128 \
+                        --cap-drop ALL \
+                        --security-opt no-new-privileges \
+                        --env SV_MLFLOW_ENABLED=0 \
+                        --env SV_MODEL_PATH=/model \
+                        --env SV_METRICS_TOKEN_SHA256_PATH=/tmp/test-metrics-token.sha256 \
+                        --env HOME=/tmp \
+                        --env GRADIO_TEMP_DIR=/tmp/gradio \
+                        --mount type=bind,source=/opt/speaker-ci-inputs-v1/model,target=/model,readonly \
+                        --mount type=bind,source=/opt/speaker-ci-inputs-v1/fixtures,target=/checks/fixtures,readonly \
+                        --mount "type=bind,source=$WORKSPACE/checks,target=/ci-checks,readonly" \
+                        --entrypoint python \
+                        "$image" /ci-checks/run_inference_regression.py
+                '''
+            }
+
+            post {
+                always {
+                    sh '''
+                        podman --remote rm --force --ignore \
+                            "speaker-ci-regression-${BUILD_NUMBER}"
+                    '''
+                }
+            }
+        }
+
     }
 }
