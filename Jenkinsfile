@@ -128,5 +128,41 @@ pipeline {
             }
         }
 
+
+        stage('Prepare release') {
+            options {
+                timeout(time: 10, unit: 'MINUTES')
+            }
+
+            steps {
+                sh '''
+                    set -eu
+                    image="localhost/speaker-verification:ci-${BUILD_NUMBER}"
+                    release="$WORKSPACE/release-${BUILD_NUMBER}"
+
+                    mkdir -m 700 "$release"
+
+                    podman --remote save \
+                        --format oci-archive \
+                        --output "$release/image.oci.tar" \
+                        "$image"
+
+                    git rev-parse HEAD > "$release/commit.txt"
+                    printf '%s\n' "$image" > "$release/image-reference.txt"
+                    podman --remote image inspect "$image" \
+                        --format '{{.Id}}' > "$release/image-id.txt"
+
+                    cd "$release"
+                    sha256sum image.oci.tar > SHA256SUMS
+                    sha256sum --check SHA256SUMS
+                '''
+
+                archiveArtifacts(
+                    artifacts: "release-${env.BUILD_NUMBER}/*.txt,release-${env.BUILD_NUMBER}/SHA256SUMS",
+                    fingerprint: true
+                )
+            }
+        }
+
     }
 }
