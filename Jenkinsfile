@@ -2,7 +2,7 @@ pipeline {
     agent { label 'speaker-builder' }
 
     options {
-        timeout(time: 130, unit: 'MINUTES')
+        timeout(time: 180, unit: 'MINUTES')
         disableConcurrentBuilds()
         buildDiscarder(logRotator(numToKeepStr: '10'))
         skipDefaultCheckout(true)
@@ -161,6 +161,31 @@ pipeline {
                     artifacts: "release-${env.BUILD_NUMBER}/*.txt,release-${env.BUILD_NUMBER}/SHA256SUMS",
                     fingerprint: true
                 )
+            }
+        }
+
+
+        stage('Deploy production') {
+            options {
+                timeout(time: 25, unit: 'MINUTES')
+            }
+
+            steps {
+                sh '''
+                    set -eu
+                    printf 'deploy %s\n' "$BUILD_NUMBER" |
+                        ssh -F /dev/null -T \
+                            -p 2222 \
+                            -o BatchMode=yes \
+                            -o IdentitiesOnly=yes \
+                            -o StrictHostKeyChecking=yes \
+                            -o ConnectTimeout=10 \
+                            -o ServerAliveInterval=15 \
+                            -o ServerAliveCountMax=3 \
+                            -o UserKnownHostsFile=/run/deploy/known_hosts \
+                            -i /run/deploy/id_ed25519 \
+                            speaker-ci@192.168.0.157
+                '''
             }
         }
 
